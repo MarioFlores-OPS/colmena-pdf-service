@@ -35,25 +35,39 @@ def generate_pdf():
 # ── CSS del reporte narrativo ─────────────────────────────────────────────────
 REPORTE_CSS = """
 <style>
-@page { size: A4; margin: 20mm 25mm; }
+@page {
+  size: A4;
+  margin: 2.54cm 1.91cm;
+  @top-center {
+    content: "Reporte Narrativo del Diagnostico — " attr(data-negocio);
+    font-family: Arial, sans-serif;
+    font-size: 8pt;
+    color: #fff;
+    background: #1d4ed8;
+    padding: 6px 12px;
+    border-radius: 0 0 6px 6px;
+  }
+}
 * { box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; font-size: 10.5pt; line-height: 1.75; background: #fff; }
-h1 { font-size: 20pt; font-weight: 900; color: #1e293b; border-bottom: 4px solid #f59e0b; padding-bottom: 10px; margin-bottom: 6px; margin-top: 0; }
-.subtitulo { color: #64748b; font-size: 9pt; margin-bottom: 28px; }
-h2 { font-size: 13pt; font-weight: 800; color: #1d4ed8; margin-top: 28px; margin-bottom: 8px; padding-left: 12px; border-left: 4px solid #1d4ed8; }
-h3 { font-size: 10.5pt; font-weight: 700; color: #475569; margin-top: 16px; margin-bottom: 6px; }
+.page-hdr { background: #1d4ed8; color: #fff; padding: 10px 14px; border-radius: 6px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+.page-hdr-title { font-size: 12pt; font-weight: 900; }
+.page-hdr-sub { font-size: 8pt; color: #bfdbfe; margin-top: 2px; }
+h1 { font-size: 18pt; font-weight: 900; color: #1e293b; border-bottom: 4px solid #1d4ed8; padding-bottom: 10px; margin-bottom: 6px; margin-top: 0; }
+.subtitulo { color: #64748b; font-size: 9pt; margin-bottom: 24px; }
+h2 { font-size: 12pt; font-weight: 800; color: #1d4ed8; margin-top: 24px; margin-bottom: 8px; padding-left: 12px; border-left: 4px solid #1d4ed8; }
+h3 { font-size: 10.5pt; font-weight: 700; color: #475569; margin-top: 14px; margin-bottom: 6px; }
 p { margin-bottom: 12px; }
 ul, ol { margin: 10px 0 14px 20px; padding: 0; }
 li { margin-bottom: 7px; }
 strong { color: #1e293b; }
-.destaca { background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+.destaca { background: #eff6ff; border-left: 4px solid #1d4ed8; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
 .alerta { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
 .exito { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
-.paso { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
-.paso-num { display: inline-block; background: #1d4ed8; color: #fff; font-weight: 800; font-size: 9pt; padding: 2px 8px; border-radius: 4px; margin-bottom: 6px; }
-.firma { background: #1e293b; color: #fff; padding: 20px 24px; border-radius: 10px; margin-top: 32px; }
-.firma strong { color: #f59e0b; font-size: 12pt; display: block; margin-bottom: 6px; }
-.firma p { color: #94a3b8; font-size: 9pt; margin: 0; }
+.paso { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
+.firma { background: #1d4ed8; color: #fff; padding: 20px 24px; border-radius: 10px; margin-top: 28px; }
+.firma strong { color: #fff; font-size: 13pt; display: block; margin-bottom: 6px; }
+.firma p { color: #bfdbfe; font-size: 9pt; margin: 0; }
 </style>
 """
 
@@ -86,8 +100,8 @@ def generate_reporte_completo():
         # 1. Llamar a Claude
         payload = json.dumps({
             'model': 'claude-haiku-4-5-20251001',
-            'max_tokens': 4000,
-            'system': 'Eres una mentora de negocios. Devuelve UNICAMENTE el contenido HTML del reporte, sin markdown, sin bloques de codigo, sin explicaciones. Empieza directamente con las etiquetas HTML del contenido.',
+            'max_tokens': 6000,
+            'system': 'Eres una mentora de negocios. Devuelve UNICAMENTE el contenido HTML del reporte. Sin markdown, sin bloques de codigo. Usa div con class=page-hdr al inicio de cada seccion principal con el titulo de la seccion. Empieza con un h1 seguido del contenido.',
             'messages': [{'role': 'user', 'content': data['prompt']}]
         }).encode('utf-8')
 
@@ -111,28 +125,32 @@ def generate_reporte_completo():
         # 2. Limpiar y preparar HTML narrativo
         html_narrativo = limpiar_html(html_raw)
 
-        # 3. Página de portada del reporte narrativo con diseño Colmena
+        # 3. Página de portada del reporte narrativo
         portada_narrativo = f"""
-        <div style="page-break-before:always; background:#1e293b; color:#fff;
-                    padding:40mm 30mm; min-height:100vh; display:flex;
-                    flex-direction:column; justify-content:center;">
-          <div style="color:#f59e0b;font-size:11pt;font-weight:700;
-                      text-transform:uppercase;letter-spacing:3px;margin-bottom:16px;">
+        <div style="page-break-before:always; background:#1d4ed8; color:#fff;
+                    padding:2.54cm 1.91cm; min-height:26cm;
+                    display:flex; flex-direction:column; justify-content:center;">
+          <div style="color:#bfdbfe;font-size:9pt;font-weight:700;
+                      text-transform:uppercase;letter-spacing:3px;margin-bottom:20px;">
             Negocio Colmena
           </div>
-          <div style="font-size:28pt;font-weight:900;line-height:1.2;margin-bottom:12px;">
-            Reporte Narrativo<br/>de Diagnóstico
+          <div style="font-size:26pt;font-weight:900;line-height:1.2;margin-bottom:8px;">
+            Diagnostico de Madurez
           </div>
-          <div style="color:#94a3b8;font-size:11pt;margin-bottom:32px;">
-            Análisis personalizado generado con Inteligencia Artificial
+          <div style="font-size:18pt;font-weight:700;color:#bfdbfe;margin-bottom:28px;">
+            Reporte Narrativo del Diagnostico
           </div>
-          <div style="background:#334155;border-radius:10px;padding:20px 24px;">
-            <div style="color:#f59e0b;font-size:9pt;text-transform:uppercase;
+          <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:20px 24px;margin-bottom:20px;">
+            <div style="color:#bfdbfe;font-size:8pt;text-transform:uppercase;
                         letter-spacing:2px;margin-bottom:8px;">Elaborado para</div>
-            <div style="font-size:14pt;font-weight:800;">{data.get('negocio','')}</div>
-            <div style="color:#94a3b8;font-size:9pt;margin-top:4px;">
+            <div style="font-size:16pt;font-weight:900;">{data.get('negocio','')}</div>
+            <div style="color:#bfdbfe;font-size:9pt;margin-top:6px;">
               {data.get('fecha','')} &nbsp;·&nbsp; {data.get('ciudad','')} &nbsp;·&nbsp; {data.get('etapa','')}
             </div>
+          </div>
+          <div style="color:#bfdbfe;font-size:8.5pt;line-height:1.6;">
+            Este reporte analiza los resultados del diagnostico empresarial<br/>
+            e incluye recomendaciones personalizadas para el desarrollo del negocio.
           </div>
         </div>
         """
