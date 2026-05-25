@@ -1,19 +1,13 @@
-"""
-Colmena PDF Service v2
-Microservicio Flask con WeasyPrint y CORS abierto
-"""
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from weasyprint import HTML
-import base64, os
+import base64, os, json, urllib.request, urllib.error
 
 app = Flask(__name__)
-
-# CORS completamente abierto — acepta peticiones desde cualquier origen
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.after_request
-def add_cors_headers(response):
+def cors_headers(response):
     response.headers['Access-Control-Allow-Origin']  = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
@@ -21,11 +15,11 @@ def add_cors_headers(response):
 
 @app.route('/', methods=['GET'])
 def health():
-    return jsonify({'ok': True, 'service': 'Colmena PDF Service v2'})
+    return jsonify({'ok': True, 'service': 'Colmena PDF + IA Service v3'})
 
+# ── PDF ────────────────────────────────────────────────────────────────────────
 @app.route('/pdf', methods=['POST', 'OPTIONS'])
 def generate_pdf():
-    # Responder preflight CORS
     if request.method == 'OPTIONS':
         return jsonify({'ok': True}), 200
     try:
@@ -37,6 +31,53 @@ def generate_pdf():
         pdf_bytes  = HTML(string=html_str).write_pdf()
         pdf_b64    = base64.b64encode(pdf_bytes).decode('utf-8')
         return jsonify({'ok': True, 'pdf': pdf_b64})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+# ── REPORTE NARRATIVO IA ───────────────────────────────────────────────────────
+@app.route('/reporte', methods=['POST', 'OPTIONS'])
+def generate_reporte():
+    if request.method == 'OPTIONS':
+        return jsonify({'ok': True}), 200
+    try:
+        data = request.get_json(force=True)
+        if not data or 'prompt' not in data:
+            return jsonify({'ok': False, 'error': 'Falta el campo prompt'}), 400
+
+        api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+        if not api_key:
+            return jsonify({'ok': False, 'error': 'ANTHROPIC_API_KEY no configurada'}), 500
+
+        payload = json.dumps({
+            'model': 'claude-sonnet-4-20250514',
+            'max_tokens': 4000,
+            'messages': [{'role': 'user', 'content': data['prompt']}]
+        }).encode('utf-8')
+
+        req = urllib.request.Request(
+            'https://api.anthropic.com/v1/messages',
+            data=payload,
+            headers={
+                'Content-Type': 'application/json',
+                'x-api-key': api_key,
+                'anthropic-version': '2023-06-01'
+            },
+            method='POST'
+        )
+
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+
+        html_reporte = result.get('content', [{}])[0].get('text', '')
+        if not html_reporte:
+            return jsonify({'ok': False, 'error': 'Respuesta vacía de Claude'}), 500
+
+        html_b64 = base64.b64encode(html_reporte.encode('utf-8')).decode('utf-8')
+        return jsonify({'ok': True, 'html': html_b64})
+
+    except urllib.error.HTTPError as e:
+        body = e.read().decode('utf-8') if e.fp else str(e)
+        return jsonify({'ok': False, 'error': f'API Claude error {e.code}: {body}'}), 500
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
