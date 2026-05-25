@@ -72,8 +72,10 @@ def generate_reporte():
         if not html_reporte:
             return jsonify({'ok': False, 'error': 'Respuesta vacía de Claude'}), 500
 
-        html_b64 = base64.b64encode(html_reporte.encode('utf-8')).decode('utf-8')
-        return jsonify({'ok': True, 'html': html_b64})
+        # Convertir HTML a PDF con WeasyPrint
+        pdf_bytes = HTML(string=html_reporte).write_pdf()
+        pdf_b64   = base64.b64encode(pdf_bytes).decode('utf-8')
+        return jsonify({'ok': True, 'pdf': pdf_b64})
 
     except urllib.error.HTTPError as e:
         body = e.read().decode('utf-8') if e.fp else str(e)
