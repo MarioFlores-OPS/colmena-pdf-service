@@ -38,34 +38,22 @@ REPORTE_CSS = """
 @page {
   size: A4;
   margin: 2.54cm 1.91cm;
-  @top-center {
-    content: "Reporte Narrativo del Diagnostico — " attr(data-negocio);
-    font-family: Arial, sans-serif;
-    font-size: 8pt;
-    color: #fff;
-    background: #1d4ed8;
-    padding: 6px 12px;
-    border-radius: 0 0 6px 6px;
-  }
 }
 * { box-sizing: border-box; }
 body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; font-size: 10.5pt; line-height: 1.75; background: #fff; }
-.page-hdr { background: #1d4ed8; color: #fff; padding: 10px 14px; border-radius: 6px; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
-.page-hdr-title { font-size: 12pt; font-weight: 900; }
-.page-hdr-sub { font-size: 8pt; color: #bfdbfe; margin-top: 2px; }
-h1 { font-size: 18pt; font-weight: 900; color: #1e293b; border-bottom: 4px solid #1d4ed8; padding-bottom: 10px; margin-bottom: 6px; margin-top: 0; }
+h1 { font-size: 18pt; font-weight: 900; color: #1e293b; border-bottom: 4px solid #1e293b; padding-bottom: 10px; margin-bottom: 6px; margin-top: 0; }
 .subtitulo { color: #64748b; font-size: 9pt; margin-bottom: 24px; }
-h2 { font-size: 12pt; font-weight: 800; color: #1d4ed8; margin-top: 24px; margin-bottom: 8px; padding-left: 12px; border-left: 4px solid #1d4ed8; }
+h2 { font-size: 12pt; font-weight: 800; color: #1e293b; margin-top: 24px; margin-bottom: 8px; padding-left: 12px; border-left: 4px solid #1e293b; }
 h3 { font-size: 10.5pt; font-weight: 700; color: #475569; margin-top: 14px; margin-bottom: 6px; }
 p { margin-bottom: 12px; }
 ul, ol { margin: 10px 0 14px 20px; padding: 0; }
 li { margin-bottom: 7px; }
 strong { color: #1e293b; }
-.destaca { background: #eff6ff; border-left: 4px solid #1d4ed8; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
+.destaca { background: #f1f5f9; border-left: 4px solid #1e293b; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
 .alerta { background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
 .exito { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 16px 0; }
 .paso { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; margin: 10px 0; }
-.firma { background: #1d4ed8; color: #fff; padding: 20px 24px; border-radius: 10px; margin-top: 28px; }
+.firma { background: #1e293b; color: #fff; padding: 20px 24px; border-radius: 10px; margin-top: 28px; }
 .firma strong { color: #fff; font-size: 13pt; display: block; margin-bottom: 6px; }
 .firma p { color: #bfdbfe; font-size: 9pt; margin: 0; }
 </style>
@@ -101,7 +89,7 @@ def generate_reporte_completo():
         payload = json.dumps({
             'model': 'claude-haiku-4-5-20251001',
             'max_tokens': 6000,
-            'system': 'Eres una mentora de negocios. Devuelve UNICAMENTE el contenido HTML del reporte. Sin markdown, sin bloques de codigo. Usa div con class=page-hdr al inicio de cada seccion principal con el titulo de la seccion. Empieza con un h1 seguido del contenido.',
+            'system': 'Eres una mentora de negocios. Devuelve UNICAMENTE el contenido HTML del reporte. Sin markdown, sin bloques de codigo. Usa h2 para el titulo de cada seccion principal. Empieza con un h1 seguido del contenido.',
             'messages': [{'role': 'user', 'content': data['prompt']}]
         }).encode('utf-8')
 
@@ -127,7 +115,7 @@ def generate_reporte_completo():
 
         # 3. Página de portada del reporte narrativo
         portada_narrativo = f"""
-        <div style="page-break-before:always; background:#1d4ed8; color:#fff;
+        <div style="page-break-after:always; background:#1e293b; color:#fff;
                     padding:2.54cm 1.91cm; min-height:26cm;
                     display:flex; flex-direction:column; justify-content:center;">
           <div style="color:#bfdbfe;font-size:9pt;font-weight:700;
@@ -166,10 +154,12 @@ def generate_reporte_completo():
         # 5. HTML visual (páginas 1-4)
         html_visual = base64.b64decode(data['html']).decode('utf-8')
 
-        # 6. Combinar todo en un solo HTML
+        # 6. Combinar todo: portada primero, luego páginas visuales 1-4, luego narrativo
         html_combinado = html_visual.replace(
+            '<body>', '<body>' + portada_narrativo, 1
+        ).replace(
             '</body></html>',
-            portada_narrativo + cuerpo_narrativo + '</body></html>'
+            cuerpo_narrativo + '</body></html>'
         )
 
         # 7. Generar PDF con WeasyPrint
